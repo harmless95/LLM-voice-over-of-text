@@ -1,21 +1,34 @@
 from pathlib import Path
 from typing import ClassVar
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+class ConfigTwitch(BaseModel):
+    token: str
+    username: str
+    channel: str
+    client_id: str
+    # client_secret: str
+    # bot_id: str
 
 
 class ModelLLM(BaseModel):
     MODEL_REPO: str = "snakers4/silero-models"
     MODEL_NAME: str = "silero_tts"
     LANGUAGE: str = "ru"  # ru / en
-    SPEAKER_VERSION: str = "ru_v3"  # ru_v3 / v4 / en_v3 и т.д.
+    SPEAKER_VERSION: str = "v5_ru"
 
 
 class ConfigTTS(BaseModel):
     samplerate: int = 48_000
+    put_accent: bool = True
+    put_yo: bool = True
+    put_stress_homo: bool = True
+    put_yo_homo: bool = True
 
     # константы голосов, поддерживаемых в silero
     SPEAKER_AIDAR: ClassVar[str] = "aidar"
@@ -23,7 +36,7 @@ class ConfigTTS(BaseModel):
     SPEAKER_KSENIYA: ClassVar[str] = "kseniya"
     SPEAKER_XENIA: ClassVar[str] = "xenia"
     SPEAKER_RANDOM: ClassVar[str] = "random"
-    SPEAKER: ClassVar[str] = SPEAKER_KSENIYA
+    SPEAKER: ClassVar[str] = SPEAKER_XENIA
 
     # константы девайсов для работы torch
     DEVICE_CPU: ClassVar[str] = "cpu"
@@ -44,6 +57,16 @@ class ConfigSTT(BaseModel):
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=(
+            BASE_DIR / ".env.template",
+            BASE_DIR / ".env",
+        ),
+        case_sensitive=False,
+        env_nested_delimiter="__",
+        env_prefix="APP_CONFIG__",
+    )
+    conf_tw: ConfigTwitch
     conf_tts: ConfigTTS = ConfigTTS()
     conf_stt: ConfigSTT = ConfigSTT()
     model: ModelLLM = ModelLLM()

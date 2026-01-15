@@ -35,3 +35,6 @@ class STT:
                 data = self.__Q__.get()
                 if self.__REC__.AcceptWaveform(data):
                     executor(json.loads(self.__REC__.Result())["text"])
+
+
+stt = STT()
