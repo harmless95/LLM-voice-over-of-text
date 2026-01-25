@@ -1,0 +1,32 @@
+services:
+  voice_app:
+    build:
+      dockerfile: ./Docker-build/Dockerfile1
+      context: .
+    container_name: voice_app
+    image: my_voice_project_final
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+    environment:
+      - PULSE_SERVER=/mnt/wslg/PulseServer
+      - DISPLAY=${DISPLAY} # Если вдруг понадобится графический интерфейс
+      - PYTHONUNBUFFERED=1
+
+    volumes:
+      - /mnt/wslg:/mnt/wslg
+      - ./my_project:/app
+
+    devices:
+      - /dev/snd:/dev/snd
+
+    group_add:
+      - audio
+
+    stdin_open: true
+    tty: true

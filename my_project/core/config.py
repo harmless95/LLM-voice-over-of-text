@@ -12,19 +12,19 @@ class ConfigTwitch(BaseModel):
     username: str
     channel: str
     client_id: str
-    # client_secret: str
-    # bot_id: str
 
 
 class ModelLLM(BaseModel):
     MODEL_REPO: str = "snakers4/silero-models"
     MODEL_NAME: str = "silero_tts"
     LANGUAGE: str = "ru"  # ru / en
+    LANGUAGE_EN: str = "en"
     SPEAKER_VERSION: str = "v5_ru"
+    SPEAKER_VERSION_EN: str = "v3_en"
 
 
 class ConfigTTS(BaseModel):
-    samplerate: int = 48_000
+    samplerate: int = 48000
     put_accent: bool = True
     put_yo: bool = True
     put_stress_homo: bool = True
@@ -37,6 +37,7 @@ class ConfigTTS(BaseModel):
     SPEAKER_XENIA: ClassVar[str] = "xenia"
     SPEAKER_RANDOM: ClassVar[str] = "random"
     SPEAKER: ClassVar[str] = SPEAKER_XENIA
+    SPEAKER_EN: str = "en_0"
 
     # константы девайсов для работы torch
     DEVICE_CPU: ClassVar[str] = "cpu"
@@ -44,11 +45,12 @@ class ConfigTTS(BaseModel):
     DEVICE_VULKAN: ClassVar[str] = "vulkan"
     DEVICE_OPENGL: ClassVar[str] = "opengl"
     DEVICE_OPENCL: ClassVar[str] = "opencl"
-    DEVICE: ClassVar[str] = DEVICE_CPU
+    DEVICE: ClassVar[str] = DEVICE_CUDA
 
 
 class ConfigSTT(BaseModel):
-    path_model: str = BASE_DIR / "data_vosk/vosk-model-small-ru-0.22"
+    path_model: str = BASE_DIR / "data_models/vosk/vosk-model-small-ru-0.22"
+    path_model_translate: str = BASE_DIR / "data_models/helsinki_nlp/"
     samplerate: int = 16000
     blocksize: int = 8000
     device: int | None = None

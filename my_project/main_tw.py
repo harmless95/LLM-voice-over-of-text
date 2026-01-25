@@ -5,9 +5,10 @@ import threading
 from fuzzywuzzy import fuzz
 
 from core.config import setting
-from core.model import tts
-from core.model import stt
+from core.model import tts, stt, translate_text
+from utils.translite import tran_text
 
+FLAG_STT = False
 
 token = setting.conf_tw.token
 username = setting.conf_tw.username
@@ -18,13 +19,6 @@ sock.connect(("irc.chat.twitch.tv", 6667))
 sock.send(f"PASS oauth:{token}\n".encode())
 sock.send(f"NICK {username}\n".encode())
 sock.send(f"JOIN #{channel}\n".encode())
-
-
-dict_name = {
-    "harmless95": "Хармлесс 95",
-    "UmoPsychoDior": "Умо Психо Диор",
-    "VadimVK777": "Вадим ВК 777",
-}
 
 
 def clean_text(text):
@@ -47,40 +41,39 @@ def equ(text, needed):
 
 
 def execute(text: str):
+    global FLAG_STT
+    command_start = "Бобр старт"
+    command_stop = "Бобр стоп"
+
     print(f"> {text}")
-    text_bobr = "бобр отправь сообщение"
 
-    if equ(text, "расскажи анектдот"):
-        text = "какой то анекдот!"
-        tts.text2speech(text)
-        print(f"- {text}")
+    if equ(text=text, needed=command_start):
+        FLAG_STT = True
+        print("Start Бобр")
+        tts.text2speech(text="Режим бобра включен", lang=0)
+        return
 
-    elif equ(text, "что ты умеешь"):
-        text = "я умею всё, чему ты мен+я науч+ил!"
-        tts.text2speech(text)
-        print(f"- {text}")
+    elif equ(text=text, needed=command_stop):
+        FLAG_STT = False
+        print("Stop Бобр")
+        tts.text2speech(text="Режим бобра отключён", lang=0)
+        return
 
-    elif equ(text, "выключи"):
-        text = "надеюсь, я не стану про+ектом, кот+орый ты забр+осишь!"
-        tts.text2speech(text)
-        print(f"- {text}")
-        raise SystemExit
-    if text_bobr in text:
-        equ(text, "бобр отправь сообщение")
-        result_text = text.lower().split(text_bobr)
-        text = f"Я не бобр, но сообщение {result_text[1:]} было отправлено!"
-        tts.text2speech(text)
-        print(f"- {text}")
+    if FLAG_STT and text != "":
+        en_text = translate_text(text_ru=text)
+        print(en_text)
+        result_text_en = en_text[0].get("translation_text")
+        tts.text2speech(text=result_text_en, lang=1)
 
 
 def main():
-    # def stt_thread():
-    #     """STT в отдельном потоке"""
-    #     stt.listen(execute)
+    def stt_thread():
+        """STT в отдельном потоке"""
+        stt.listen(execute)
 
     # ✅ STT в фоне
-    # stt_daemon = threading.Thread(target=stt_thread, daemon=True)
-    # stt_daemon.start()
+    stt_daemon = threading.Thread(target=stt_thread, daemon=True)
+    stt_daemon.start()
     print("🎙️ STT запущен в фоне")
     while True:
         response = sock.recv(4096).decode("utf-8")
@@ -91,14 +84,10 @@ def main():
             message = extract_message(response)
             if message:
                 clean_message = clean_text(message[1])
-                name = [
-                    vol for key, vol in dict_name.items() if key.lower() == message[0]
-                ]
-                if not name:
-                    name = "новый пользователь"
+                name = tran_text(text=message[0])
                 print(f"Message:{name} {clean_message}")
                 message_sound = f"{name} {clean_message}"
-                tts.text2speech(message_sound)
+                tts.text2speech(message_sound, lang=0)
 
 
 if __name__ == "__main__":

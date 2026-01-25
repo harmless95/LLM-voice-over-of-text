@@ -1,0 +1,35 @@
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HUB_ENABLE_HF_TRANSFER=1
+
+# Добавляем curl и unzip, иначе шаг с Vosk упадет
+RUN apt-get update && apt-get install -y curl unzip && rm -rf /var/lib/apt/lists/*
+
+RUN echo 'pcm.!default { type pulse }' > /etc/asound.conf && \
+    echo 'ctl.!default { type pulse }' >> /etc/asound.conf
+
+WORKDIR /app
+
+RUN pip install hf_transfer scipy huggingface_hub omegaconf
+
+# 2. Скачиваем Vosk (исправленная ссылка и логика)
+RUN mkdir -p ./data_models/vosk && \
+    curl -L https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip -o vosk.zip && \
+    unzip vosk.zip && \
+    mv vosk-model-small-ru-0.22/* ./data_models/vosk/ && \
+    rm -rf vosk.zip vosk-model-small-ru-0.22
+
+# 3 и 4. Скачиваем Silero TTS (RU и EN)
+RUN python3 -c 'import torch; \
+    torch.hub.load("snakers4/silero-models", "silero_tts", language="ru", speaker="v5_ru", trust_repo=True); \
+    torch.hub.load("snakers4/silero-models", "silero_tts", language="en", speaker="v3_en", trust_repo=True)'
+
+RUN python3 -c 'from huggingface_hub import snapshot_download; \
+    snapshot_download("Helsinki-NLP/opus-mt-ru-en", local_dir="./data_models/helsinki_nlp")'
+
+# Системные библиотеки для звука
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libportaudio2 libasound2 libasound2-plugins alsa-utils \
+    && rm -rf /var/lib/apt/lists/*

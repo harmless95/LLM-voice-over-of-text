@@ -1,0 +1,16 @@
+FROM model_voice
+
+WORKDIR /app
+
+RUN pip install "poetry==2.2.1" && poetry config virtualenvs.create false
+
+COPY ./my_project/pyproject.toml ./
+
+# Установка зависимостей
+COPY ./my_project/pyproject.toml ./my_project/poetry.lock ./
+RUN poetry config virtualenvs.create false && poetry install --without torch,dev
+
+
+COPY /my_project .
+
+CMD ["python", "main_tw.py"]
