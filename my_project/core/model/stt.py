@@ -16,6 +16,7 @@ class STT:
             vosk.Model(str(setting.conf_stt.path_model)), self.__SAMPLERATE__
         )
         self.__Q__ = queue.Queue()
+        self.active = True
 
     def q_callback(self, indata, _, __, status):
         if status:
@@ -31,10 +32,12 @@ class STT:
             channels=setting.conf_stt.channels,
             callback=self.q_callback,
         ):
-            while True:
+            while self.active:
                 data = self.__Q__.get()
                 if self.__REC__.AcceptWaveform(data):
-                    executor(json.loads(self.__REC__.Result())["text"])
+                    res = json.loads(self.__REC__.Result())["text"]
+                    if res.strip():  # Вызываем только если текст не пустой
+                        executor(res)
 
 
 stt = STT()

@@ -41,11 +41,12 @@ def equ(text, needed):
 
 
 def execute(text: str):
+    if not text.strip():  # Игнорируем тишину на входе
+        return
+
     global FLAG_STT
     command_start = "Бобр старт"
     command_stop = "Бобр стоп"
-
-    print(f"> {text}")
 
     if equ(text=text, needed=command_start):
         FLAG_STT = True
@@ -55,13 +56,14 @@ def execute(text: str):
 
     elif equ(text=text, needed=command_stop):
         FLAG_STT = False
+        stt.active = False
         print("Stop Бобр")
         tts.text2speech(text="Режим бобра отключён", lang=0)
         return
 
     if FLAG_STT and text != "":
+        print(f"Распознано: {text}")
         en_text = translate_text(text_ru=text)
-        print(en_text)
         result_text_en = en_text[0].get("translation_text")
         tts.text2speech(text=result_text_en, lang=1)
 
@@ -80,7 +82,6 @@ def main():
         if response.startswith("PING"):
             sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
         else:
-            print("--", response)  # Здесь можно обрабатывать сообщения
             message = extract_message(response)
             if message:
                 clean_message = clean_text(message[1])
