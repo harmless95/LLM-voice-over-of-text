@@ -20,10 +20,6 @@ sock.send(f"NICK {username}\n".encode())
 sock.send(f"JOIN #{channel}\n".encode())
 
 
-def clean_text(text):
-    return re.sub(r"[^\w\s!?.,]", "", text)
-
-
 def extract_message(raw_response):
     match = re.search(
         r":(\w+)!\w+@[\w\.]+\.tmi\.twitch\.tv PRIVMSG #[\w-]+ :(.+)", raw_response
@@ -34,7 +30,6 @@ def extract_message(raw_response):
     return None
 
 
-# [val for key, val in dict.items() if text.lower() in key]
 def equ(text, needed):
     return fuzz.ratio(text, needed) >= 70
 

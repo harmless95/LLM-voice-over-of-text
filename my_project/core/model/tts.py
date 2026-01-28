@@ -1,6 +1,3 @@
-import re
-import time
-
 import torch
 import sounddevice as sd
 
@@ -36,24 +33,7 @@ class TTS:
         self.__PUT_STRESS_HOMO__ = put_stress_homo
         self.__PUT_YO_HOMO__ = put_yo_homo
 
-    def should_speak(self, text: str) -> bool:
-        text = text.strip()
-        if (
-            len(text) < 2
-            or text.isdigit()
-            or re.match(r"^\W+$", text)
-            or len(text.split()) == 1
-            and text.lower() in ["test", "тест", "кек"]
-        ):
-            return False
-        return True
-
     def text2speech(self, text: str, lang=0):
-
-        if not self.should_speak(text):
-            print(f"⏭️ Skip: '{text}'")
-            return
-
         try:
             print(f"🎙️ Говорит: '{text}'")
             if lang == 0:
