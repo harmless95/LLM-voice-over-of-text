@@ -13,6 +13,8 @@ transformers = "^4.57.6"
 soundfile = "^0.13.1"
 fishaudio = "^0.0.5"
 sentencepiece = "^0.2.1"
+transliterate = "^1.10.2"
+num2words = "^0.5.14"
 
 
 [dependency-groups]
