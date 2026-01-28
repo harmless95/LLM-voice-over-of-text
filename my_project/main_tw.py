@@ -3,10 +3,9 @@ import asyncio
 import threading
 
 from fuzzywuzzy import fuzz
-
 from core.config import setting
 from core.model import tts, stt, translate_text
-from utils.translite import tran_text
+from utils.translate_text import main_message
 
 FLAG_STT = False
 
@@ -84,11 +83,9 @@ def main():
         else:
             message = extract_message(response)
             if message:
-                clean_message = clean_text(message[1])
-                name = tran_text(text=message[0])
-                print(f"Message:{name} {clean_message}")
-                message_sound = f"{name} {clean_message}"
-                tts.text2speech(message_sound, lang=0)
+                clean_message = main_message(text=message)
+                print(f"Message:{clean_message}")
+                tts.text2speech(clean_message, lang=0)
 
 
 if __name__ == "__main__":
