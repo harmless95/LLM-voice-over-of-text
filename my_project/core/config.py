@@ -51,6 +51,7 @@ class ConfigTTS(BaseModel):
 class ConfigSTT(BaseModel):
     path_model: str = BASE_DIR / "data_models/vosk/vosk-model-small-ru-0.22"
     path_model_translate: str = BASE_DIR / "data_models/helsinki_nlp/"
+    path_model_translate_ru: str = BASE_DIR / "data_models/helsinki_ru_nlp/"
     samplerate: int = 16000
     blocksize: int = 8000
     device: int | None = None
