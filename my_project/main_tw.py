@@ -1,6 +1,7 @@
 import queue
 import time
 import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning)
 import re, socket
 import asyncio
@@ -62,6 +63,7 @@ def execute(text: str):
         result_text_en = en_text[0].get("translation_text")
         tts.text2speech(text=result_text_en, lang=1)
 
+
 def sock_connection():
     """
     Подключение к чату твича
@@ -78,6 +80,7 @@ def sock_connection():
         except Exception as e:
             print(f"❌ Не удалось подключиться: {e}. Пробую снова через 5 сек...")
             time.sleep(5)
+
 
 def voice_worker():
     """
@@ -99,6 +102,7 @@ def voice_worker():
 def main():
     sock = sock_connection()
     threading.Thread(target=voice_worker, daemon=True).start()
+
     def stt_thread():
         """STT в отдельном потоке"""
         stt.listen(execute)
@@ -130,7 +134,12 @@ def main():
 
                         voice_queue.put((clean_message, 0))
 
-        except (ConnectionAbortedError, ConnectionResetError, socket.error, UnicodeDecodeError) as e:
+        except (
+            ConnectionAbortedError,
+            ConnectionResetError,
+            socket.error,
+            UnicodeDecodeError,
+        ) as e:
             print(f"❌ Соединение разорвано ({e}). Переподключение через 5 сек...")
             try:
                 sock.close()
@@ -138,7 +147,6 @@ def main():
                 pass
             time.sleep(5)
             sock = sock_connection()
-
 
 
 if __name__ == "__main__":
