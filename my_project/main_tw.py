@@ -1,23 +1,24 @@
+import queue
+import time
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 import re, socket
 import asyncio
 import threading
+
 
 from fuzzywuzzy import fuzz
 from core.config import setting
 from core.model import tts, stt, translate_text
 from utils.translate_text import main_message
 
+
 FLAG_STT = False
+voice_queue = queue.Queue()
 
 token = setting.conf_tw.token
 username = setting.conf_tw.username
 channel = setting.conf_tw.channel
-
-sock = socket.socket()
-sock.connect(("irc.chat.twitch.tv", 6667))
-sock.send(f"PASS oauth:{token}\n".encode())
-sock.send(f"NICK {username}\n".encode())
-sock.send(f"JOIN #{channel}\n".encode())
 
 
 def extract_message(raw_response):
@@ -61,8 +62,43 @@ def execute(text: str):
         result_text_en = en_text[0].get("translation_text")
         tts.text2speech(text=result_text_en, lang=1)
 
+def sock_connection():
+    """
+    Подключение к чату твича
+    :return: sock - Соединение
+    """
+    while True:
+        try:
+            sock = socket.socket()
+            sock.connect(("irc.chat.twitch.tv", 6667))
+            sock.send(f"PASS oauth:{token}\r\n".encode())
+            sock.send(f"NICK {username}\r\n".encode())
+            sock.send(f"JOIN #{channel}\r\n".encode())
+            return sock
+        except Exception as e:
+            print(f"❌ Не удалось подключиться: {e}. Пробую снова через 5 сек...")
+            time.sleep(5)
+
+def voice_worker():
+    """
+    Получаем сообщение из очереди и озвучивает
+    """
+    while True:
+        item = voice_queue.get()
+        if item is None:
+            break
+        text, lang = item
+        if text:
+            try:
+                tts.text2speech(text=text, lang=lang)
+            except Exception as e:
+                print(f"Ошибка TTS: {e}")
+        voice_queue.task_done()
+
 
 def main():
+    sock = sock_connection()
+    threading.Thread(target=voice_worker, daemon=True).start()
     def stt_thread():
         """STT в отдельном потоке"""
         stt.listen(execute)
@@ -72,15 +108,37 @@ def main():
     stt_daemon.start()
     print("🎙️ STT запущен в фоне")
     while True:
-        response = sock.recv(4096).decode("utf-8")
-        if response.startswith("PING"):
-            sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
-        else:
-            message = extract_message(response)
-            if message:
-                clean_message = main_message(text=message)
-                print(f"Message:{clean_message}")
-                tts.text2speech(clean_message, lang=0)
+        try:
+            response = sock.recv(4096).decode("utf-8")
+            if not response:
+                print("⚠️ Получена пустая строка. Переподключение...")
+                raise socket.error("Empty response")
+
+            lines = response.split("\r\n")
+            for line in lines:
+                if not line:
+                    continue
+
+                if line.startswith("PING"):
+                    sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
+
+                else:
+                    message = extract_message(line)
+                    if message:
+                        clean_message = main_message(text=message)
+                        print(f"Message:{clean_message}")
+
+                        voice_queue.put((clean_message, 0))
+
+        except (ConnectionAbortedError, ConnectionResetError, socket.error, UnicodeDecodeError) as e:
+            print(f"❌ Соединение разорвано ({e}). Переподключение через 5 сек...")
+            try:
+                sock.close()
+            except:
+                pass
+            time.sleep(5)
+            sock = sock_connection()
+
 
 
 if __name__ == "__main__":
