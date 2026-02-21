@@ -1,0 +1,3 @@
+git config --global user.name "Vit" # Имя которое будет отображатся при комитах
+git config --global user.email "example@email.com" # Почта
+git config -l просмотреть информацию
