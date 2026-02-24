@@ -41,8 +41,7 @@ def main_message(text: list) -> str | None:
     logger.info("Translation of a string or number of a message: %s", message_final)
 
     result = text_final + message_final
-    check_message = message_final.split()[1]
-    has_english = bool(re.search(r"[a-zA-Z]", check_message))
+    has_english = bool(re.search(r"[a-zA-Z]", message_final))
 
     if has_english:
         logger.error("Translation error: %s", message_final)
