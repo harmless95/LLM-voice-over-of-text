@@ -1,9 +1,10 @@
 from pathlib import Path
 from typing import ClassVar, Literal
-import logging
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
+
+from core.logs_setting import setup_logger
 
 # fmt: off
 LOG_DEFAULT_FORMAT = "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s"
@@ -72,18 +73,7 @@ class LoggingConfig(BaseModel):
         "CRITICAL",
     ] = "INFO"
     log_format: str = LOG_DEFAULT_FORMAT
-
-    @field_validator("log_level", mode="before")
-    @classmethod
-    def to_upper(cls, v: str) -> str:
-        return v.upper()
-
-    def setup_logger(self):
-        """Метод для настройки логгера на основе конфига"""
-        logging.basicConfig(
-            level=self.log_level, format=self.log_format, datefmt="%Y-%m-%d %H:%M:%S"
-        )
-        return logging.getLogger("MainLogger")
+    log_file: str = BASE_DIR / "data_logs/error_logs.log"
 
 
 class Settings(BaseSettings):
@@ -104,4 +94,9 @@ class Settings(BaseSettings):
 
 
 setting = Settings()
-logger = setting.my_logger.setup_logger()
+
+logger = setup_logger(
+    log_level=setting.my_logger.log_level,
+    log_file=setting.my_logger.log_file,
+    log_format=setting.my_logger.log_format,
+)
