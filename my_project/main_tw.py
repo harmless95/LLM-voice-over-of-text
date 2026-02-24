@@ -9,7 +9,7 @@ import threading
 
 
 from fuzzywuzzy import fuzz
-from core.config import setting
+from core.config import setting, logger
 from core.model import tts, stt, translate_text
 from utils.translate_text import main_message
 
@@ -51,22 +51,25 @@ def execute(text: str):
 
     if equ(text=text, needed=command_start):
         FLAG_STT = True
-        print("Start Бобр")
-        tts.text2speech(text="Режим бобра включен", lang=0)
+        logger.info("Start Бобр")
+
+        result_text_en = "Режим бобра включен"
+        voice_queue.put((result_text_en, "ru"))
         return
 
     elif equ(text=text, needed=command_stop):
         FLAG_STT = False
         stt.active = False
-        print("Stop Бобр")
-        tts.text2speech(text="Режим бобра отключён", lang=0)
+        logger.info("Stop Бобр")
+        result_text_en = "Режим бобра отключён"
+        voice_queue.put((result_text_en, "ru"))
         return
 
     if FLAG_STT and text != "":
-        print(f"Распознано: {text}")
+        logger.info("Распознано: %s", text)
         en_text = translate_text(text_ru=text)
         result_text_en = en_text[0].get("translation_text")
-        tts.text2speech(text=result_text_en, lang=1)
+        voice_queue.put((result_text_en, "en"))
 
 
 def sock_connection():
@@ -83,7 +86,7 @@ def sock_connection():
             sock.send(f"JOIN #{channel}\r\n".encode())
             return sock
         except Exception as e:
-            print(f"❌ Не удалось подключиться: {e}. Пробую снова через 5 сек...")
+            logger.error("Не удалось подключиться: %s. Пробую снова через 5 сек...", e)
             time.sleep(5)
 
 
@@ -92,16 +95,39 @@ def voice_worker():
     Получаем сообщение из очереди и озвучивает
     """
     while True:
+        logger.info("Receiving from Queue")
         item = voice_queue.get()
         if item is None:
             break
         text, lang = item
         if text:
             try:
+                logger.info("Message for TTS: %s", text)
                 tts.text2speech(text=text, lang=lang)
+                logger.info("Completed TTS")
             except Exception as e:
-                print(f"Ошибка TTS: {e}")
+                logger.error("Ошибка TTS: %s", e)
         voice_queue.task_done()
+
+
+def handler_lines(lines, sock):
+    for line in lines:
+        if not line:
+            continue
+
+        if line.startswith("PING"):
+            sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
+
+        else:
+            logger.info("Receiving the user and his message: %s", line)
+            message = extract_message(line)
+            logger.info("Completed receiving the user and his message")
+            if message:
+                logger.info("Message before processing: %s", message)
+                clean_message = main_message(text=message)
+                logger.info("The message was processed successfully")
+                if clean_message:
+                    voice_queue.put((clean_message, "ru"))
 
 
 def main():
@@ -115,29 +141,16 @@ def main():
     # ✅ STT в фоне
     stt_daemon = threading.Thread(target=stt_thread, daemon=True)
     stt_daemon.start()
-    print("🎙️ STT запущен в фоне")
+    logger.info("🎙️ STT запущен в фоне")
     while True:
         try:
             response = sock.recv(4096).decode("utf-8")
             if not response:
-                print("⚠️ Получена пустая строка. Переподключение...")
+                logger.error("Empty response", response)
                 raise socket.error("Empty response")
-
+            logger.info("Response: %s", response)
             lines = response.split("\r\n")
-            for line in lines:
-                if not line:
-                    continue
-
-                if line.startswith("PING"):
-                    sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
-
-                else:
-                    message = extract_message(line)
-                    if message:
-                        clean_message = main_message(text=message)
-                        print(f"Message:{clean_message}")
-
-                        voice_queue.put((clean_message, 0))
+            handler_lines(lines=lines, sock=sock)
 
         except (
             ConnectionAbortedError,
@@ -145,7 +158,7 @@ def main():
             socket.error,
             UnicodeDecodeError,
         ) as e:
-            print(f"❌ Соединение разорвано ({e}). Переподключение через 5 сек...")
+            logger.error("Соединение разорвано (%s). Переподключение через 5 сек...", e)
             try:
                 sock.close()
             except:
