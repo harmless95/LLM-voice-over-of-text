@@ -117,17 +117,20 @@ def handler_lines(lines, sock):
 
         if line.startswith("PING"):
             sock.send("PONG :tmi.twitch.tv\r\n".encode("utf-8"))
+            continue
 
-        else:
-            logger.info("Receiving the user and his message: %s", line)
-            message = extract_message(line)
-            logger.info("Completed receiving the user and his message")
-            if message:
-                logger.info("Message before processing: %s", message)
-                clean_message = main_message(text=message)
-                logger.info("The message was processed successfully")
-                if clean_message:
-                    voice_queue.put((clean_message, "ru"))
+        logger.info("Receiving the user and his message: %s", line)
+        message = extract_message(line)
+        if not message:
+            continue
+
+        logger.info("Message before processing: %s", message)
+        clean_message = main_message(text=message)
+        if not clean_message:
+            continue
+
+        logger.info("The message was processed successfully")
+        voice_queue.put((clean_message, "ru"))
 
 
 def main():
