@@ -20,14 +20,19 @@ voice_queue = queue.Queue()
 token = setting.conf_tw.token
 username = setting.conf_tw.username
 channel = setting.conf_tw.channel
+last_user = ""
 
 
 def extract_message(raw_response):
+    global last_user
     match = re.search(
         r":(\w+)!\w+@[\w\.]+\.tmi\.twitch\.tv PRIVMSG #[\w-]+ :(.+)", raw_response
     )
     if match:
         username, message = match.groups()
+        if last_user.lower() == username.lower():
+            return ["", message]
+        last_user = username
         return [username, message]  # "harmless95 проверка"
     return None
 
