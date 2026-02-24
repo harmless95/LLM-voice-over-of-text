@@ -1,7 +1,7 @@
 import torch
 import sounddevice as sd
 
-from core.config import setting
+from core.config import setting, logger
 from core.model.load_model import LOADING_MODEL
 from core.model.load_model_en import LOADING_MODEL_EN
 
@@ -33,10 +33,10 @@ class TTS:
         self.__PUT_STRESS_HOMO__ = put_stress_homo
         self.__PUT_YO_HOMO__ = put_yo_homo
 
-    def text2speech(self, text: str, lang=0):
+    def text2speech(self, text: str, lang="ru"):
         try:
             print(f"🎙️ Говорит: '{text}'")
-            if lang == 0:
+            if lang == "ru":
                 audio = self.__MODEL__.apply_tts(
                     text=text,
                     speaker=self.__SPEAKER__,
@@ -46,19 +46,23 @@ class TTS:
                     put_stress_homo=self.__PUT_STRESS_HOMO__,
                     put_yo_homo=self.__PUT_YO_HOMO__,
                 )
-            else:
+
+            elif lang == "en":
                 audio = self.__MODEL_EN__.apply_tts(
                     text=text,
                     speaker=self.__SPEAKER_EN__,
                     sample_rate=self.__SAMPLERATE__,
                 )
+            else:
+                logger.error("Incorrect data entry")
 
             # ✅ Настройка sounddevice
             audio = audio.squeeze()  # Убираем лишние размерности
+            logger.info("Play audio: %s", audio)
             sd.play(audio, samplerate=48000)
             sd.wait()
         except Exception as e:
-            print(f"⚠️ TTS fail: {e}")
+            logger.error("TTS fail: %s", e)
 
 
 tts = TTS(

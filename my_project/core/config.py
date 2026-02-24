@@ -1,9 +1,13 @@
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
+import logging
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
+# fmt: off
+LOG_DEFAULT_FORMAT = "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-7s - %(message)s"
+# fmt: on
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -59,6 +63,29 @@ class ConfigSTT(BaseModel):
     channels: int = 1
 
 
+class LoggingConfig(BaseModel):
+    log_level: Literal[
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL",
+    ] = "INFO"
+    log_format: str = LOG_DEFAULT_FORMAT
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def to_upper(cls, v: str) -> str:
+        return v.upper()
+
+    def setup_logger(self):
+        """Метод для настройки логгера на основе конфига"""
+        logging.basicConfig(
+            level=self.log_level, format=self.log_format, datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        return logging.getLogger("MainLogger")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(
@@ -73,6 +100,8 @@ class Settings(BaseSettings):
     conf_tts: ConfigTTS = ConfigTTS()
     conf_stt: ConfigSTT = ConfigSTT()
     model: ModelLLM = ModelLLM()
+    my_logger: LoggingConfig = LoggingConfig()
 
 
 setting = Settings()
+logger = setting.my_logger.setup_logger()

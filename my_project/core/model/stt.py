@@ -6,7 +6,7 @@ import sounddevice as sd
 
 import vosk
 
-from core.config import setting
+from core.config import setting, logger
 
 
 class STT:
@@ -20,7 +20,7 @@ class STT:
 
     def q_callback(self, indata, _, __, status):
         if status:
-            print(status, file=sys.stderr)
+            logger.info("Status: %s, File: %s", status, file=sys.stderr)
         self.__Q__.put(bytes(indata))
 
     def listen(self, executor: Callable[[str], None]) -> None:
@@ -32,11 +32,13 @@ class STT:
             channels=setting.conf_stt.channels,
             callback=self.q_callback,
         ):
+            logger.info("Start listen")
             while self.active:
                 data = self.__Q__.get()
                 if self.__REC__.AcceptWaveform(data):
                     res = json.loads(self.__REC__.Result())["text"]
                     if res.strip():  # Вызываем только если текст не пустой
+                        logger.info("Text STT: %s", res)
                         executor(res)
 
 
