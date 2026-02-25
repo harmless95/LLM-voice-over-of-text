@@ -71,7 +71,7 @@ class LoggingConfig(BaseModel):
         "WARNING",
         "ERROR",
         "CRITICAL",
-    ] = "INFO"
+    ] = "WARNING"
     log_format: str = LOG_DEFAULT_FORMAT
     log_file: str = BASE_DIR / "data_logs/error_logs.log"
 
