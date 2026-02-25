@@ -8,19 +8,19 @@ import asyncio
 import threading
 
 
-from fuzzywuzzy import fuzz
 from core.config import setting, logger
-from core.model import tts, stt, translate_text
+from core.model import tts, stt, Commands
 from utils.translate_text import main_message
 
 
-FLAG_STT = False
 voice_queue = queue.Queue()
 
 token = setting.conf_tw.token
 username = setting.conf_tw.username
 channel = setting.conf_tw.channel
 last_user = ""
+
+com_all = Commands(voice_queue=voice_queue)
 
 
 def extract_message(raw_response):
@@ -35,41 +35,6 @@ def extract_message(raw_response):
         last_user = username
         return [username, message]  # "harmless95 проверка"
     return None
-
-
-def equ(text, needed):
-    return fuzz.ratio(text, needed) >= 70
-
-
-def execute(text: str):
-    if not text.strip():  # Игнорируем тишину на входе
-        return
-
-    global FLAG_STT
-    command_start = "Бобр старт"
-    command_stop = "Бобр стоп"
-
-    if equ(text=text, needed=command_start):
-        FLAG_STT = True
-        logger.info("Start Бобр")
-
-        result_text_en = "Режим бобра включен"
-        voice_queue.put((result_text_en, "ru"))
-        return
-
-    elif equ(text=text, needed=command_stop):
-        FLAG_STT = False
-        stt.active = False
-        logger.info("Stop Бобр")
-        result_text_en = "Режим бобра отключён"
-        voice_queue.put((result_text_en, "ru"))
-        return
-
-    if FLAG_STT and text != "":
-        logger.info("Распознано: %s", text)
-        en_text = translate_text(text_ru=text)
-        result_text_en = en_text[0].get("translation_text")
-        voice_queue.put((result_text_en, "en"))
 
 
 def sock_connection():
@@ -139,7 +104,7 @@ def main():
 
     def stt_thread():
         """STT в отдельном потоке"""
-        stt.listen(execute)
+        stt.listen(com_all.execute)
 
     # ✅ STT в фоне
     stt_daemon = threading.Thread(target=stt_thread, daemon=True)

@@ -2,8 +2,7 @@ import torch
 import sounddevice as sd
 
 from core.config import setting, logger
-from core.model.load_model import LOADING_MODEL
-from core.model.load_model_en import LOADING_MODEL_EN
+from dependencies.loading_dependencies import LOADING_MODEL, LOADING_MODEL_EN
 
 
 class TTS:
@@ -35,7 +34,7 @@ class TTS:
 
     def text2speech(self, text: str, lang="ru"):
         try:
-            print(f"🎙️ Говорит: '{text}'")
+            logger.info("Говорит текст: %s язык озвучки: %s", text, lang)
             if lang == "ru":
                 audio = self.__MODEL__.apply_tts(
                     text=text,
