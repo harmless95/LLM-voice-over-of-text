@@ -4,7 +4,6 @@ import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning)
 import re, socket
-import asyncio
 import threading
 
 
@@ -26,7 +25,8 @@ com_all = Commands(voice_queue=voice_queue)
 def extract_message(raw_response):
     global last_user
     match = re.search(
-        r":(\w+)!\w+@[\w\.]+\.tmi\.twitch\.tv PRIVMSG #[\w-]+ :(.+)", raw_response
+        r":(\w+)!\w+@[\w\.]+\.tmi\.twitch\.tv PRIVMSG #[\w-]+ :(.+)",
+        raw_response,
     )
     if match:
         username, message = match.groups()
@@ -61,18 +61,23 @@ def voice_worker():
     """
     while True:
         logger.info("Receiving from Queue")
-        item = voice_queue.get()
-        if item is None:
-            break
-        text, lang = item
-        if text:
-            try:
-                logger.info("Message for TTS: %s", text)
-                tts.text2speech(text=text, lang=lang)
-                logger.info("Completed TTS")
-            except Exception as e:
-                logger.error("Ошибка TTS: %s", e)
-        voice_queue.task_done()
+        try:
+            item = voice_queue.get()
+            if item is None:
+                break
+            text, lang = item
+            if text:
+                try:
+                    logger.info("Message for TTS: %s", text)
+                    tts.text2speech(text=text, lang=lang)
+                    logger.info("Completed TTS")
+                except Exception as e:
+                    logger.error("Ошибка TTS: %s", e)
+        except Exception as e:
+            logger.critical("Непредвиденная ошибка в воркере: %s", e, exc_info=True)
+            time.sleep(1)  # Пауза, чтобы не спамить в лог при циклической ошибке
+        finally:
+            voice_queue.task_done()
 
 
 def handler_lines(lines, sock):
@@ -98,21 +103,43 @@ def handler_lines(lines, sock):
         voice_queue.put((clean_message, "ru"))
 
 
+def stt_thread():
+    """STT в отдельном потоке"""
+    stt.listen(com_all.execute)
+
+
 def main():
     sock = sock_connection()
-    threading.Thread(target=voice_worker, daemon=True).start()
 
-    def stt_thread():
-        """STT в отдельном потоке"""
-        stt.listen(com_all.execute)
+    # TTS
+    tts_voice = threading.Thread(target=voice_worker, daemon=True, name="TTS-Worker")
+    # STT
+    stt_daemon = threading.Thread(target=stt_thread, daemon=True, name="STT-Worker")
 
-    # ✅ STT в фоне
-    stt_daemon = threading.Thread(target=stt_thread, daemon=True)
+    tts_voice.start()
     stt_daemon.start()
     logger.info("🎙️ STT запущен в фоне")
+
+    logger.info("🎙️ STT запущен в фоне")
     while True:
+        if not tts_voice.is_alive():
+            logger.error("КРИТИЧЕСКАЯ ОШИБКА: Поток озвучки (TTS) упал! Перезапуск...")
+            tts_voice = threading.Thread(
+                target=voice_worker, daemon=True, name="TTS-Worker"
+            )
+            tts_voice.start()
+        if not stt_daemon.is_alive():
+            logger.error(
+                "КРИТИЧЕСКАЯ ОШИБКА: Поток распознавания (STT) упал! Перезапуск..."
+            )
+            stt_daemon = threading.Thread(
+                target=stt_thread, daemon=True, name="STT-Worker"
+            )
+            stt_daemon.start()
+
         try:
-            response = sock.recv(4096).decode("utf-8")
+            sock.settimeout(5.0)
+            response = sock.recv(4096).decode("utf-8", errors="ignore")
             if not response:
                 logger.error("Empty response", response)
                 raise socket.error("Empty response")
@@ -120,12 +147,10 @@ def main():
             lines = response.split("\r\n")
             handler_lines(lines=lines, sock=sock)
 
-        except (
-            ConnectionAbortedError,
-            ConnectionResetError,
-            socket.error,
-            UnicodeDecodeError,
-        ) as e:
+        except socket.timeout:
+            continue
+
+        except (ConnectionError, socket.error, UnicodeDecodeError) as e:
             logger.error("Соединение разорвано (%s). Переподключение через 5 сек...", e)
             try:
                 sock.close()
