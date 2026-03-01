@@ -6,11 +6,9 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import re, socket
 import threading
 
-
 from core.config import setting, logger
 from core.model import tts, stt, Commands
 from utils.translate_text import main_message
-
 
 voice_queue = queue.Queue()
 
