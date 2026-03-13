@@ -1,4 +1,6 @@
 import re
+from typing import Callable, Iterable, List
+
 from transliterate import translit
 from num2words import num2words
 
@@ -7,27 +9,27 @@ from core.model import translate_text_ru
 from utils.smile_data import SMILE_DESCRIPTIONS
 
 
-pattern_text = r"([a-zA-Z]+)"
-pattern_number = r"([+-]?\d+(?:\.\d+)?)"
+_PATTERN_TEXT = r"([a-zA-Z]+)"
+_PATTERN_NUMBER = r"([+-]?\d+(?:\.\d+)?)"
 
 
-def text_re(match):
-    return f" {translit(match.group(0), "ru")} "
+def _transliterate_en_to_ru(match: re.Match) -> str:
+    return f" {translit(match.group(0), 'ru')} "
 
 
-def number_re(match):
+def _number_to_words_ru(match: re.Match) -> str:
     try:
-        result_number = f" {num2words(match.group(0), lang="ru")} "
+        result_number = f" {num2words(match.group(0), lang='ru')} "
     except KeyError:
         return ""
     return result_number
 
 
-def message_en(match):
+def _translate_en_fragment_to_ru(match: re.Match) -> str:
     return f" {translate_text_ru(match.group(0))} "
 
 
-def smile_text(text: str):
+def _replace_smiles(text: str) -> str:
     # Сортируем: сначала длинные (типа смайла-человечка), потом короткие :)
     sorted_smiles = sorted(
         SMILE_DESCRIPTIONS.items(),
@@ -42,32 +44,53 @@ def smile_text(text: str):
     return text
 
 
-def main_message(text: list) -> str | None:
-    logger.info("Start translate text: %s", text)
-    # Озвучиваем пользователей ник как читается не только строчно но числовые
-    name_str = text[0]
-    logger.info("Start translate user: %s", name_str)
-    text_str = re.sub(pattern_text, text_re, name_str)
-    text_final = re.sub(pattern_number, number_re, text_str)
-    logger.info("Translation of a string or number of a username: %s", text_final)
+def _prepare_username(raw_username: str) -> str:
+    logger.info("Start translate user: %s", raw_username)
+    text_str = re.sub(_PATTERN_TEXT, _transliterate_en_to_ru, raw_username)
+    text_final = re.sub(_PATTERN_NUMBER, _number_to_words_ru, text_str)
+    logger.info(
+        "Translation of a string or number of a username: %s", text_final
+    )
+    return text_final
 
+
+def _prepare_message_body(raw_message: str) -> str:
     # Находим смайлы и выводим описание
-    message_smile = smile_text(text=text[1])
-    message_str = message_smile
-    logger.info("Start translate message: %s", message_str)
+    message_with_smiles = _replace_smiles(text=raw_message)
+    logger.info("Start translate message: %s", message_with_smiles)
 
     # Находим в сообщение англ слова или числа для озвучивания
-    message_tran = re.sub(pattern_text, message_en, message_str)
-    message_final = re.sub(pattern_number, number_re, message_tran)
+    message_tran = re.sub(_PATTERN_TEXT, _translate_en_fragment_to_ru, message_with_smiles)
+    message_final = re.sub(_PATTERN_NUMBER, _number_to_words_ru, message_tran)
 
     # Проверяем смог перевести англ слова если они есть
     has_english = bool(re.search(r"[a-zA-Z]", message_final))
     if has_english:
-        message_final = re.sub(pattern_text, text_re, message_final)
+        message_final = re.sub(_PATTERN_TEXT, _transliterate_en_to_ru, message_final)
         logger.info("No translation: %s", message_final)
-    logger.info("Translation of a string or number of a message: %s", message_final)
 
-    result = text_final + message_final
+    logger.info(
+        "Translation of a string or number of a message: %s", message_final
+    )
+    return message_final
+
+
+def main_message(text: list) -> str | None:
+    """
+    Преобразует ник и текст сообщения в строку для озвучки.
+
+    text: [username, message]
+    """
+    logger.info("Start translate text: %s", text)
+    if not text or len(text) < 2:
+        return None
+
+    username, message = text[0], text[1]
+
+    username_part = _prepare_username(username)
+    message_part = _prepare_message_body(message)
+
+    result = username_part + message_part
     logger.info("Finish translate: %s", result)
 
     return result
