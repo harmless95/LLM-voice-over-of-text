@@ -203,8 +203,12 @@ def main():
         logger.info("Получен сигнал остановки, завершаю работу...")
     finally:
         client.close()
-        # Останавливаем воркер озвучки
+        # Останавливаем STT и воркер озвучки
+        stt.stop()
         voice_queue.put(None)
+        # Даём потокам время корректно завершиться
+        tts_voice.join(timeout=5)
+        stt_daemon.join(timeout=5)
 
 
 if __name__ == "__main__":

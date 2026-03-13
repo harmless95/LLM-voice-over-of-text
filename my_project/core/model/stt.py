@@ -35,11 +35,24 @@ class STT:
             logger.info("Start listen")
             while self.active:
                 data = self.__Q__.get()
+                if not self.active:
+                    break
                 if self.__REC__.AcceptWaveform(data):
                     res = json.loads(self.__REC__.Result())["text"]
                     if res.strip():  # Вызываем только если текст не пустой
                         logger.info("Text STT: %s", res)
                         executor(res)
+
+    def stop(self) -> None:
+        """
+        Останавливает цикл прослушивания и разблокирует очередь.
+        """
+        self.active = False
+        # Кладём пустой блок, чтобы разблокировать .get() в listen
+        try:
+            self.__Q__.put_nowait(b"")
+        except Exception:
+            pass
 
 
 stt = STT()
