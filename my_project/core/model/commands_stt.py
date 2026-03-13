@@ -1,6 +1,13 @@
 from fuzzywuzzy import fuzz
 
 from core.config import logger
+from core.constants import (
+    COMMAND_START,
+    COMMAND_STOP,
+    COMMAND_STATUS,
+    TTS_DEFAULT_LANG,
+    TTS_EN_LANG,
+)
 from core.model import stt, translate_text
 
 
@@ -10,9 +17,9 @@ class Commands:
         self.voice_queue = voice_queue
         self.flag_stt = False
         self.all_commands = {
-            "Бобр старт": self.start_com,
-            "Бобр стоп": self.stop_com,
-            "Бобр статус": self.status_com,
+            COMMAND_START: self.start_com,
+            COMMAND_STOP: self.stop_com,
+            COMMAND_STATUS: self.status_com,
         }
 
     def equ(self, text, needed):
@@ -23,7 +30,7 @@ class Commands:
         logger.info("Start Бобр")
 
         result_text_en = "Режим бобра включен"
-        self.voice_queue.put((result_text_en, "ru"))
+        self.voice_queue.put((result_text_en, TTS_DEFAULT_LANG))
         return
 
     def stop_com(self):
@@ -31,12 +38,12 @@ class Commands:
         # stt.active = False
         logger.info("Stop Бобр")
         result_text_en = "Режим бобра отключён"
-        self.voice_queue.put((result_text_en, "ru"))
+        self.voice_queue.put((result_text_en, TTS_DEFAULT_LANG))
         return
 
     def status_com(self):
         status = "активен" if self.flag_stt else "выключен"
-        self.voice_queue.put((f"Режим перевода {status}", "ru"))
+        self.voice_queue.put((f"Режим перевода {status}", TTS_DEFAULT_LANG))
 
     def execute(self, text: str):
         for cm, func in self.all_commands.items():
@@ -49,7 +56,6 @@ class Commands:
             try:
                 en_text = translate_text(text_ru=text)
                 if en_text:
-                    # result_text_en = en_text[0].get("translation_text")
-                    self.voice_queue.put((en_text, "en"))
+                    self.voice_queue.put((en_text, TTS_EN_LANG))
             except Exception as e:
                 logger.error("Ошибка при переводе: %s", e)

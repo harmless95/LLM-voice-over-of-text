@@ -8,6 +8,7 @@ import socket
 import threading
 
 from core.config import setting, logger
+from core.constants import Twitch_HOST, Twitch_PORT, TTS_DEFAULT_LANG
 from core.model import tts, stt, Commands
 from utils.translate_text import main_message
 
@@ -39,7 +40,7 @@ class TwitchChatClient:
         while True:
             try:
                 sock = socket.socket()
-                sock.connect(("irc.chat.twitch.tv", 6667))
+                sock.connect((Twitch_HOST, Twitch_PORT))
                 sock.send(f"PASS oauth:{self._token}\r\n".encode())
                 sock.send(f"NICK {self._username}\r\n".encode())
                 sock.send(f"JOIN #{self._channel}\r\n".encode())
@@ -160,7 +161,7 @@ def handler_lines(lines, send_pong):
             continue
 
         logger.info("The message was processed successfully")
-        voice_queue.put((clean_message, "ru"))
+        voice_queue.put((clean_message, TTS_DEFAULT_LANG))
 
 
 def stt_thread():
