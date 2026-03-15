@@ -8,7 +8,7 @@ from core.constants import (
     TTS_DEFAULT_LANG,
     TTS_EN_LANG,
 )
-from core.model import stt, translate_text
+from core.model import translate_text
 
 
 class Commands:
@@ -22,8 +22,13 @@ class Commands:
             COMMAND_STATUS: self.status_com,
         }
 
-    def equ(self, text, needed):
-        return fuzz.ratio(text.lower(), needed.lower()) >= 80
+    def equ_score(self, text: str, needed: str) -> int:
+        return fuzz.ratio(text.lower(), needed.lower())
+
+    def equ(self, text, needed, score=90) -> bool:
+        score_text = self.equ_score(text, needed)
+        logger.warning("score: %s", score_text)
+        return score_text >= score
 
     def start_com(self):
         self.flag_stt = True
@@ -46,11 +51,32 @@ class Commands:
         self.voice_queue.put((f"Режим перевода {status}", TTS_DEFAULT_LANG))
 
     def execute(self, text: str):
-        for cm, func in self.all_commands.items():
-            if self.equ(text=text, needed=cm):
-                func()
-                return
+        best_func = None
+        best_score = 0
+        text_split = text.split()
+        if not text_split:
+            return
 
+        logger.info("split text: %s", text_split[0])
+
+        if self.equ(text=text_split[0], needed="бобр"):
+            command_part = " ".join(text_split[1:]) if len(text_split) > 1 else ""
+            logger.info("Command бобр: %s", text)
+            logger.info("Command handler Бобр: %s", text)
+
+            if command_part:
+                for cm, func in self.all_commands.items():
+                    score = self.equ_score(text=command_part, needed=cm)
+                    if score > best_score:
+                        best_score = score
+                        best_func = func
+
+                if best_func is not None and best_score >= 80:
+                    best_func()
+                    return
+            logger.info("Бобр не знает команду: %s", command_part)
+        else:
+            logger.info("Бобр услышал свое имя, но команды нет")
         if self.flag_stt:
             logger.info("Распознано: %s", text)
             try:
