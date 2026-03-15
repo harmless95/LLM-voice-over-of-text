@@ -20,8 +20,9 @@ class ConfigTwitch(BaseModel):
 
 
 class ModelLLM(BaseModel):
-    MODEL_REPO: str = "snakers4/silero-models"
-    MODEL_NAME: str = "silero_tts"
+    MODEL_DIR: str = BASE_DIR / "data_models" / "silero"
+    MODEL_URL_RU: str = "https://models.silero.ai/models/tts/ru/v5_ru.pt"
+    MODEL_URL_EN: str = "https://models.silero.ai/models/tts/en/v3_en.pt"
     LANGUAGE: str = "ru"  # ru / en
     LANGUAGE_EN: str = "en"
     SPEAKER_VERSION: str = "v5_ru"
@@ -71,7 +72,7 @@ class LoggingConfig(BaseModel):
         "WARNING",
         "ERROR",
         "CRITICAL",
-    ] = "WARNING"
+    ] = "DEBUG"
     log_format: str = LOG_DEFAULT_FORMAT
     log_file: str = BASE_DIR / "data_logs/error_logs.log"
 

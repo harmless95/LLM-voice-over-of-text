@@ -2,7 +2,7 @@ import torch
 import sounddevice as sd
 
 from core.config import setting, logger
-from dependencies.loading_dependencies import LOADING_MODEL, LOADING_MODEL_EN
+from dependencies.loading_dependencies import loading_model_ru, loading_model_en
 
 
 class TTS:
@@ -18,10 +18,10 @@ class TTS:
         put_stress_homo: bool,
         put_yo_homo: bool,
     ):
-        self.__MODEL__, _ = LOADING_MODEL
+        self.__MODEL__, _ = loading_model_ru()
         self.__MODEL__.to(torch.device(device))
 
-        self.__MODEL_EN__, _ = LOADING_MODEL_EN
+        self.__MODEL_EN__, _ = loading_model_en()
         self.__MODEL_EN__.to(torch.device(device))
 
         self.__SPEAKER__ = speaker
